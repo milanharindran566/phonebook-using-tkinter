@@ -11,6 +11,18 @@ def add_entry():
     if not (first and last and phone_number and email_addr):
         messagebox.showwarning("Missing Info", "Please fill out all fields.")
         return
+    
+    if not email_addr.endswith(".com"):
+        messagebox.showwarning("Invalid Email", "Please use a valid .com email.")
+        return
+    
+    if not phone_number.isdigit():
+        messagebox.showwarning("Invalid Phone Number", "Please use digits only.")
+        return
+    
+    if len(phone_number) != 10:
+        messagebox.showwarning("Invalid Phone Number", "Please use a 10-digit number.")
+        return
 
     entry = f"{first}\t{last}\t{phone_number}\t{email_addr}\n"
     display_text.insert(tk.END, entry)
