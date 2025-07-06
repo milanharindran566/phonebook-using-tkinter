@@ -2,6 +2,27 @@ import tkinter as tk
 from tkinter import messagebox, Scrollbar, StringVar, Text
 
 # Helper functions
+def setup_search_edit_frame(parent):
+    search_frame = tk.Toplevel(parent)
+    search_frame.title("Search/Edit")
+    search_frame.configure(bg='lightyellow')
+    
+    tk.Label(search_frame, text="Search", bg='lightyellow').pack()
+    tk.Entry(search_frame, textvariable=search).pack()
+    
+    tk.Label(search_frame, text="Edit (replace found text)", bg='lightyellow').pack()
+    tk.Entry(search_frame, textvariable=edits).pack()
+    
+    tk.Button(search_frame, text="Search", command=search_entry).pack(pady=2)
+    tk.Button(search_frame, text="Edit", command=edit_entry).pack(pady=2)
+    tk.Button(search_frame, text="Clear", command=clear_search).pack(pady=2)
+    
+    global search_results
+    search_results = Text(search_frame, height=10, width=70)
+    search_results.pack()
+    
+    return search_frame
+
 def add_entry():
     first = fname.get()
     last = lname.get()
@@ -109,9 +130,8 @@ buttons_frame.pack()
 display_frame = tk.Frame(root)
 display_frame.pack()
 
-search_frame = tk.Toplevel(root)
-search_frame.title("Search/Edit")
-search_frame.configure(bg='lightyellow')
+# Add Search/Edit button to buttons_frame
+tk.Button(buttons_frame, text="Search/Edit", command=lambda: setup_search_edit_frame(root)).grid(row=0, column=4, padx=5)
 
 # Form Inputs
 fields = [("First Name", fname), ("Last Name", lname), ("Phone", phone), ("Email", email)]
@@ -134,19 +154,7 @@ display_text.config(yscrollcommand=scrollbar.set)
 display_text.insert(tk.END, "First Name\tLast Name\tPhone\tEmail\n")
 display_text.insert(tk.END, "-"*80 + "\n")
 
-# ---------------- Search/Edit Frame ----------------
-tk.Label(search_frame, text="Search", bg='lightyellow').pack()
-tk.Entry(search_frame, textvariable=search).pack()
-
-tk.Label(search_frame, text="Edit (replace found text)", bg='lightyellow').pack()
-tk.Entry(search_frame, textvariable=edits).pack()
-
-tk.Button(search_frame, text="Search", command=search_entry).pack(pady=2)
-tk.Button(search_frame, text="Edit", command=edit_entry).pack(pady=2)
-tk.Button(search_frame, text="Clear", command=clear_search).pack(pady=2)
-
-search_results = Text(search_frame, height=10, width=70)
-search_results.pack()
+tk.Button(buttons_frame, text="Search/Edit", command=lambda: setup_search_edit_frame(root)).grid(row=0, column=4, padx=5)
 
 # Start the GUI loop
 root.mainloop()
