@@ -1,14 +1,15 @@
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox, ttk, filedialog
 import json
 import os
 from datetime import datetime
+import csv
 
 class PhonebookApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Phone Book Application")
-        self.root.geometry("750x580")
+        self.root.geometry("800x600")
         self.root.configure(bg='#f0f0f0')
         
         # Database file
@@ -114,13 +115,13 @@ class PhonebookApp:
         search_filter_frame.pack(padx=10, pady=10, fill="x")
         
         tk.Label(search_filter_frame, text="Search:", bg='#f0f0f0', font=("Arial", 10)).pack(side=tk.LEFT, padx=5)
-        self.search_entry = tk.Entry(search_filter_frame, width=25, font=("Arial", 10))
+        self.search_entry = tk.Entry(search_filter_frame, width=20, font=("Arial", 10))
         self.search_entry.pack(side=tk.LEFT, padx=5)
         self.search_entry.bind('<KeyRelease>', lambda e: self.search_contacts())
         
         tk.Label(search_filter_frame, text="Category:", bg='#f0f0f0', font=("Arial", 10)).pack(side=tk.LEFT, padx=5)
         self.filter_var = tk.StringVar(value="All")
-        filter_combo = ttk.Combobox(search_filter_frame, textvariable=self.filter_var, values=["All"] + self.categories, width=15, state="readonly", font=("Arial", 10))
+        filter_combo = ttk.Combobox(search_filter_frame, textvariable=self.filter_var, values=["All"] + self.categories, width=12, state="readonly", font=("Arial", 10))
         filter_combo.pack(side=tk.LEFT, padx=5)
         filter_combo.bind('<<ComboboxSelected>>', lambda e: self.refresh_list())
         
@@ -190,6 +191,16 @@ class PhonebookApp:
             text="Delete Selected",
             command=self.delete_contact,
             bg='#f44336',
+            fg='white',
+            font=("Arial", 10),
+            padx=10
+        ).pack(side=tk.LEFT, padx=5)
+        
+        tk.Button(
+            actions_frame,
+            text="Export",
+            command=self.export_contacts,
+            bg='#9C27B0',
             fg='white',
             font=("Arial", 10),
             padx=10
@@ -307,6 +318,91 @@ class PhonebookApp:
             self.save_contacts()
             self.refresh_list()
             messagebox.showinfo("Success", "Contact deleted!")
+    
+    def export_contacts(self):
+        """Export contacts to CSV or JSON"""
+        if not self.contacts:
+            messagebox.showwarning("Error", "No contacts to export!")
+            return
+        
+        # Create export window
+        export_window = tk.Toplevel(self.root)
+        export_window.title("Export Contacts")
+        export_window.geometry("300x200")
+        export_window.configure(bg='#f0f0f0')
+        
+        tk.Label(export_window, text="Select Export Format:", bg='#f0f0f0', font=("Arial", 12, "bold")).pack(pady=15)
+        
+        def export_csv():
+            file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
+            if file_path:
+                try:
+                    with open(file_path, 'w', newline='') as csvfile:
+                        fieldnames = ['Name', 'Phone', 'Email', 'Category', 'Favorite']
+                        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                        
+                        writer.writeheader()
+                        for name, data in sorted(self.contacts.items()):
+                            writer.writerow({
+                                'Name': name,
+                                'Phone': data['phone'],
+                                'Email': data['email'],
+                                'Category': data.get('category', 'Other'),
+                                'Favorite': 'Yes' if data.get('favorite', False) else 'No'
+                            })
+                    
+                    messagebox.showinfo("Success", f"Contacts exported to {file_path}")
+                    export_window.destroy()
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to export: {str(e)}")
+        
+        def export_json():
+            file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
+            if file_path:
+                try:
+                    with open(file_path, 'w') as jsonfile:
+                        json.dump(self.contacts, jsonfile, indent=2)
+                    
+                    messagebox.showinfo("Success", f"Contacts exported to {file_path}")
+                    export_window.destroy()
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to export: {str(e)}")
+        
+        tk.Button(
+            export_window,
+            text="Export as CSV",
+            command=export_csv,
+            bg='#4CAF50',
+            fg='white',
+            font=("Arial", 11),
+            width=20,
+            padx=10,
+            pady=10
+        ).pack(pady=10)
+        
+        tk.Button(
+            export_window,
+            text="Export as JSON",
+            command=export_json,
+            bg='#2196F3',
+            fg='white',
+            font=("Arial", 11),
+            width=20,
+            padx=10,
+            pady=10
+        ).pack(pady=10)
+        
+        tk.Button(
+            export_window,
+            text="Cancel",
+            command=export_window.destroy,
+            bg='#f44336',
+            fg='white',
+            font=("Arial", 11),
+            width=20,
+            padx=10,
+            pady=10
+        ).pack(pady=10)
     
     def search_contacts(self):
         """Search contacts in real-time"""
