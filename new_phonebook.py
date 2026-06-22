@@ -8,12 +8,15 @@ class PhonebookApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Phone Book Application")
-        self.root.geometry("600x500")
+        self.root.geometry("700x550")
         self.root.configure(bg='#f0f0f0')
         
         # Database file
         self.db_file = "contacts.json"
         self.load_contacts()
+        
+        # Default categories
+        self.categories = ["Work", "Personal", "Family", "Friends", "Other"]
         
         # Setup UI
         self.setup_ui()
@@ -72,9 +75,15 @@ class PhonebookApp:
         self.email_entry = tk.Entry(input_frame, width=30, font=("Arial", 10))
         self.email_entry.grid(row=2, column=1, padx=5, pady=5)
         
+        # Category field
+        tk.Label(input_frame, text="Category:", bg='#f0f0f0', font=("Arial", 10)).grid(row=3, column=0, sticky='e', padx=5, pady=5)
+        self.category_var = tk.StringVar(value="Personal")
+        self.category_combo = ttk.Combobox(input_frame, textvariable=self.category_var, values=self.categories, width=27, state="readonly", font=("Arial", 10))
+        self.category_combo.grid(row=3, column=1, padx=5, pady=5)
+        
         # Button Frame
         button_frame = tk.Frame(input_frame, bg='#f0f0f0')
-        button_frame.grid(row=3, column=0, columnspan=2, pady=10)
+        button_frame.grid(row=4, column=0, columnspan=2, pady=10)
         
         tk.Button(
             button_frame, 
@@ -105,6 +114,16 @@ class PhonebookApp:
         self.search_entry.pack(side=tk.LEFT, padx=5)
         self.search_entry.bind('<KeyRelease>', lambda e: self.search_contacts())
         
+        # Filter Frame
+        filter_frame = tk.Frame(self.root, bg='#f0f0f0')
+        filter_frame.pack(padx=10, pady=5, fill="x")
+        
+        tk.Label(filter_frame, text="Filter by Category:", bg='#f0f0f0', font=("Arial", 10)).pack(side=tk.LEFT, padx=5)
+        self.filter_var = tk.StringVar(value="All")
+        filter_combo = ttk.Combobox(filter_frame, textvariable=self.filter_var, values=["All"] + self.categories, width=20, state="readonly", font=("Arial", 10))
+        filter_combo.pack(side=tk.LEFT, padx=5)
+        filter_combo.bind('<<ComboboxSelected>>', lambda e: self.refresh_list())
+        
         # Contacts List Frame
         list_frame = tk.LabelFrame(
             self.root,
@@ -117,12 +136,18 @@ class PhonebookApp:
         list_frame.pack(padx=10, pady=10, fill="both", expand=True)
         
         # Treeview for displaying contacts
-        columns = ('Name', 'Phone', 'Email')
-        self.tree = ttk.Treeview(list_frame, columns=columns, height=12, show='headings')
+        columns = ('Name', 'Phone', 'Email', 'Category')
+        self.tree = ttk.Treeview(list_frame, columns=columns, height=10, show='headings')
         
-        for col in columns:
-            self.tree.column(col, width=150)
-            self.tree.heading(col, text=col)
+        self.tree.column('Name', width=120)
+        self.tree.column('Phone', width=120)
+        self.tree.column('Email', width=180)
+        self.tree.column('Category', width=100)
+        
+        self.tree.heading('Name', text='Name')
+        self.tree.heading('Phone', text='Phone')
+        self.tree.heading('Email', text='Email')
+        self.tree.heading('Category', text='Category')
         
         # Scrollbar
         scrollbar = ttk.Scrollbar(list_frame, orient='vertical', command=self.tree.yview)
@@ -176,6 +201,7 @@ class PhonebookApp:
         name = self.name_entry.get().strip()
         phone = self.phone_entry.get().strip()
         email = self.email_entry.get().strip()
+        category = self.category_var.get()
         
         if not name:
             messagebox.showwarning("Error", "Name cannot be empty!")
@@ -196,13 +222,14 @@ class PhonebookApp:
         self.contacts[name] = {
             'phone': phone,
             'email': email,
+            'category': category,
             'created': datetime.now().isoformat()
         }
         
         self.save_contacts()
         self.clear_fields()
         self.refresh_list()
-        messagebox.showinfo("Success", f"Contact '{name}' added successfully!")
+        messagebox.showinfo("Success", f"Contact '{name}' added to {category}!")
     
     def edit_contact(self):
         """Edit selected contact"""
@@ -222,6 +249,7 @@ class PhonebookApp:
         self.name_entry.insert(0, name)
         self.phone_entry.insert(0, self.contacts[name]['phone'])
         self.email_entry.insert(0, self.contacts[name]['email'])
+        self.category_var.set(self.contacts[name].get('category', 'Personal'))
         
         # Delete old contact
         del self.contacts[name]
@@ -247,6 +275,7 @@ class PhonebookApp:
     def search_contacts(self):
         """Search contacts in real-time"""
         query = self.search_entry.get().lower()
+        filter_category = self.filter_var.get()
         
         # Clear the tree
         for item in self.tree.get_children():
@@ -254,8 +283,11 @@ class PhonebookApp:
         
         # Search and display
         for name, data in self.contacts.items():
-            if query in name.lower() or query in data['phone'] or query in data['email'].lower():
-                self.tree.insert('', 'end', values=(name, data['phone'], data['email']))
+            category = data.get('category', 'Other')
+            category_match = (filter_category == "All" or filter_category == category)
+            
+            if category_match and (query in name.lower() or query in data['phone'] or query in data['email'].lower()):
+                self.tree.insert('', 'end', values=(name, data['phone'], data['email'], category))
     
     def refresh_list(self):
         """Refresh the contacts list"""
@@ -263,17 +295,24 @@ class PhonebookApp:
         for item in self.tree.get_children():
             self.tree.delete(item)
         
+        filter_category = self.filter_var.get()
+        
         # Load all contacts
         for name in sorted(self.contacts.keys()):
             data = self.contacts[name]
-            self.tree.insert('', 'end', values=(name, data['phone'], data['email']))
+            category = data.get('category', 'Other')
+            
+            if filter_category == "All" or filter_category == category:
+                self.tree.insert('', 'end', values=(name, data['phone'], data['email'], category))
     
     def clear_fields(self):
         """Clear input fields"""
         self.name_entry.delete(0, tk.END)
         self.phone_entry.delete(0, tk.END)
         self.email_entry.delete(0, tk.END)
+        self.category_var.set("Personal")
         self.search_entry.delete(0, tk.END)
+        self.filter_var.set("All")
         self.refresh_list()
 
 if __name__ == "__main__":
