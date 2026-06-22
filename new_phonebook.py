@@ -8,7 +8,7 @@ class PhonebookApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Phone Book Application")
-        self.root.geometry("700x550")
+        self.root.geometry("750x580")
         self.root.configure(bg='#f0f0f0')
         
         # Database file
@@ -81,9 +81,13 @@ class PhonebookApp:
         self.category_combo = ttk.Combobox(input_frame, textvariable=self.category_var, values=self.categories, width=27, state="readonly", font=("Arial", 10))
         self.category_combo.grid(row=3, column=1, padx=5, pady=5)
         
+        # Favorite field
+        self.favorite_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(input_frame, text="⭐ Mark as Favorite", variable=self.favorite_var, bg='#f0f0f0', font=("Arial", 10)).grid(row=4, column=1, sticky='w', padx=5, pady=5)
+        
         # Button Frame
         button_frame = tk.Frame(input_frame, bg='#f0f0f0')
-        button_frame.grid(row=4, column=0, columnspan=2, pady=10)
+        button_frame.grid(row=5, column=0, columnspan=2, pady=10)
         
         tk.Button(
             button_frame, 
@@ -105,24 +109,23 @@ class PhonebookApp:
             padx=10
         ).pack(side=tk.LEFT, padx=5)
         
-        # Search Frame
-        search_frame = tk.Frame(self.root, bg='#f0f0f0')
-        search_frame.pack(padx=10, pady=10, fill="x")
+        # Search and Filter Frame
+        search_filter_frame = tk.Frame(self.root, bg='#f0f0f0')
+        search_filter_frame.pack(padx=10, pady=10, fill="x")
         
-        tk.Label(search_frame, text="Search:", bg='#f0f0f0', font=("Arial", 10)).pack(side=tk.LEFT, padx=5)
-        self.search_entry = tk.Entry(search_frame, width=30, font=("Arial", 10))
+        tk.Label(search_filter_frame, text="Search:", bg='#f0f0f0', font=("Arial", 10)).pack(side=tk.LEFT, padx=5)
+        self.search_entry = tk.Entry(search_filter_frame, width=25, font=("Arial", 10))
         self.search_entry.pack(side=tk.LEFT, padx=5)
         self.search_entry.bind('<KeyRelease>', lambda e: self.search_contacts())
         
-        # Filter Frame
-        filter_frame = tk.Frame(self.root, bg='#f0f0f0')
-        filter_frame.pack(padx=10, pady=5, fill="x")
-        
-        tk.Label(filter_frame, text="Filter by Category:", bg='#f0f0f0', font=("Arial", 10)).pack(side=tk.LEFT, padx=5)
+        tk.Label(search_filter_frame, text="Category:", bg='#f0f0f0', font=("Arial", 10)).pack(side=tk.LEFT, padx=5)
         self.filter_var = tk.StringVar(value="All")
-        filter_combo = ttk.Combobox(filter_frame, textvariable=self.filter_var, values=["All"] + self.categories, width=20, state="readonly", font=("Arial", 10))
+        filter_combo = ttk.Combobox(search_filter_frame, textvariable=self.filter_var, values=["All"] + self.categories, width=15, state="readonly", font=("Arial", 10))
         filter_combo.pack(side=tk.LEFT, padx=5)
         filter_combo.bind('<<ComboboxSelected>>', lambda e: self.refresh_list())
+        
+        self.favorites_only_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(search_filter_frame, text="⭐ Favorites Only", variable=self.favorites_only_var, bg='#f0f0f0', font=("Arial", 10), command=self.refresh_list).pack(side=tk.LEFT, padx=5)
         
         # Contacts List Frame
         list_frame = tk.LabelFrame(
@@ -136,14 +139,16 @@ class PhonebookApp:
         list_frame.pack(padx=10, pady=10, fill="both", expand=True)
         
         # Treeview for displaying contacts
-        columns = ('Name', 'Phone', 'Email', 'Category')
+        columns = ('Favorite', 'Name', 'Phone', 'Email', 'Category')
         self.tree = ttk.Treeview(list_frame, columns=columns, height=10, show='headings')
         
-        self.tree.column('Name', width=120)
-        self.tree.column('Phone', width=120)
-        self.tree.column('Email', width=180)
-        self.tree.column('Category', width=100)
+        self.tree.column('Favorite', width=40)
+        self.tree.column('Name', width=110)
+        self.tree.column('Phone', width=110)
+        self.tree.column('Email', width=170)
+        self.tree.column('Category', width=90)
         
+        self.tree.heading('Favorite', text='⭐')
         self.tree.heading('Name', text='Name')
         self.tree.heading('Phone', text='Phone')
         self.tree.heading('Email', text='Email')
@@ -166,6 +171,16 @@ class PhonebookApp:
             command=self.edit_contact,
             bg='#2196F3',
             fg='white',
+            font=("Arial", 10),
+            padx=10
+        ).pack(side=tk.LEFT, padx=5)
+        
+        tk.Button(
+            actions_frame,
+            text="Toggle Favorite",
+            command=self.toggle_favorite,
+            bg='#FFD700',
+            fg='black',
             font=("Arial", 10),
             padx=10
         ).pack(side=tk.LEFT, padx=5)
@@ -202,6 +217,7 @@ class PhonebookApp:
         phone = self.phone_entry.get().strip()
         email = self.email_entry.get().strip()
         category = self.category_var.get()
+        is_favorite = self.favorite_var.get()
         
         if not name:
             messagebox.showwarning("Error", "Name cannot be empty!")
@@ -223,6 +239,7 @@ class PhonebookApp:
             'phone': phone,
             'email': email,
             'category': category,
+            'favorite': is_favorite,
             'created': datetime.now().isoformat()
         }
         
@@ -240,7 +257,7 @@ class PhonebookApp:
         
         item = selected[0]
         values = self.tree.item(item)['values']
-        name = values[0]
+        name = values[1]  # Name is at index 1 now due to Favorite column
         
         self.name_entry.delete(0, tk.END)
         self.phone_entry.delete(0, tk.END)
@@ -250,11 +267,30 @@ class PhonebookApp:
         self.phone_entry.insert(0, self.contacts[name]['phone'])
         self.email_entry.insert(0, self.contacts[name]['email'])
         self.category_var.set(self.contacts[name].get('category', 'Personal'))
+        self.favorite_var.set(self.contacts[name].get('favorite', False))
         
         # Delete old contact
         del self.contacts[name]
         self.tree.delete(item)
         self.save_contacts()
+    
+    def toggle_favorite(self):
+        """Toggle favorite status for selected contact"""
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("Error", "Please select a contact!")
+            return
+        
+        item = selected[0]
+        values = self.tree.item(item)['values']
+        name = values[1]  # Name is at index 1
+        
+        self.contacts[name]['favorite'] = not self.contacts[name].get('favorite', False)
+        self.save_contacts()
+        self.refresh_list()
+        
+        status = "added to" if self.contacts[name]['favorite'] else "removed from"
+        messagebox.showinfo("Success", f"Contact '{name}' {status} favorites!")
     
     def delete_contact(self):
         """Delete selected contact"""
@@ -264,7 +300,7 @@ class PhonebookApp:
             return
         
         item = selected[0]
-        name = self.tree.item(item)['values'][0]
+        name = self.tree.item(item)['values'][1]  # Name is at index 1
         
         if messagebox.askyesno("Confirm", f"Delete '{name}'?"):
             del self.contacts[name]
@@ -276,6 +312,7 @@ class PhonebookApp:
         """Search contacts in real-time"""
         query = self.search_entry.get().lower()
         filter_category = self.filter_var.get()
+        favorites_only = self.favorites_only_var.get()
         
         # Clear the tree
         for item in self.tree.get_children():
@@ -284,10 +321,15 @@ class PhonebookApp:
         # Search and display
         for name, data in self.contacts.items():
             category = data.get('category', 'Other')
-            category_match = (filter_category == "All" or filter_category == category)
+            is_favorite = data.get('favorite', False)
             
-            if category_match and (query in name.lower() or query in data['phone'] or query in data['email'].lower()):
-                self.tree.insert('', 'end', values=(name, data['phone'], data['email'], category))
+            category_match = (filter_category == "All" or filter_category == category)
+            favorites_match = (not favorites_only or is_favorite)
+            text_match = (query in name.lower() or query in data['phone'] or query in data['email'].lower())
+            
+            if category_match and favorites_match and text_match:
+                favorite_mark = "⭐" if is_favorite else ""
+                self.tree.insert('', 'end', values=(favorite_mark, name, data['phone'], data['email'], category))
     
     def refresh_list(self):
         """Refresh the contacts list"""
@@ -296,14 +338,21 @@ class PhonebookApp:
             self.tree.delete(item)
         
         filter_category = self.filter_var.get()
+        favorites_only = self.favorites_only_var.get()
         
-        # Load all contacts
-        for name in sorted(self.contacts.keys()):
-            data = self.contacts[name]
+        # Load all contacts sorted by favorite status and name
+        sorted_contacts = sorted(self.contacts.items(), key=lambda x: (not x[1].get('favorite', False), x[0]))
+        
+        for name, data in sorted_contacts:
             category = data.get('category', 'Other')
+            is_favorite = data.get('favorite', False)
             
-            if filter_category == "All" or filter_category == category:
-                self.tree.insert('', 'end', values=(name, data['phone'], data['email'], category))
+            category_match = (filter_category == "All" or filter_category == category)
+            favorites_match = (not favorites_only or is_favorite)
+            
+            if category_match and favorites_match:
+                favorite_mark = "⭐" if is_favorite else ""
+                self.tree.insert('', 'end', values=(favorite_mark, name, data['phone'], data['email'], category))
     
     def clear_fields(self):
         """Clear input fields"""
@@ -311,8 +360,10 @@ class PhonebookApp:
         self.phone_entry.delete(0, tk.END)
         self.email_entry.delete(0, tk.END)
         self.category_var.set("Personal")
+        self.favorite_var.set(False)
         self.search_entry.delete(0, tk.END)
         self.filter_var.set("All")
+        self.favorites_only_var.set(False)
         self.refresh_list()
 
 if __name__ == "__main__":
